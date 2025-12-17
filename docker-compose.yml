@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "file:/app/data/dev.db"
+      RUN_MIGRATIONS: "true"
+    volumes:
+      - nex_dock_data:/app/data
+
+volumes:
+  nex_dock_data:
