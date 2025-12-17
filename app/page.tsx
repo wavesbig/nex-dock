@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import { CounterDemo } from "@/components/counter-demo";
 
 export default function Home() {
   return (
@@ -61,7 +61,7 @@ export default function Home() {
           </a>
         </div>
 
-        <Button>Click me</Button>
+        <CounterDemo />
       </main>
     </div>
   );
