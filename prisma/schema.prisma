@@ -28,3 +28,23 @@ model User {
   name  String?
   posts Post[]
 }
+
+model SearchEngine {
+  key       String   @id
+  name      String
+  url       String
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings SearchSetting[]
+}
+
+model SearchSetting {
+  id                Int      @id
+  selectedEngineKey String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  selectedEngine SearchEngine? @relation(fields: [selectedEngineKey], references: [key], onDelete: SetNull)
+}
