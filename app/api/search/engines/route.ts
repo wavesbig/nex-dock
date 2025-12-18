@@ -1,100 +1,47 @@
-import { prisma } from "@/app/lib/prisma";
+import { searchService } from "@/services/search.service";
+import { CreateEngineDTO, GetEnginesResponse } from "@/types/search.dto";
 import { NextResponse } from "next/server";
 
-type EngineSeed = {
-  key: string;
-  name: string;
-  url: string;
-  sort: number;
-};
-
-const DEFAULT_ENGINES: EngineSeed[] = [
-  {
-    key: "bing",
-    name: "Bing",
-    url: "https://www.bing.com/search?q={q}",
-    sort: 10,
-  },
-  {
-    key: "baidu",
-    name: "百度",
-    url: "https://www.baidu.com/s?wd={q}",
-    sort: 20,
-  },
-  {
-    key: "google",
-    name: "Google",
-    url: "https://www.google.com/search?q={q}",
-    sort: 30,
-  },
-];
-
-async function ensureDefaults() {
-  const count = await prisma.searchEngine.count();
-  if (count > 0) return;
-  try {
-    await prisma.searchEngine.createMany({ data: DEFAULT_ENGINES });
-  } catch {}
-  await prisma.searchSetting.upsert({
-    where: { id: 1 },
-    create: { id: 1, selectedEngineKey: DEFAULT_ENGINES[0].key },
-    update: {},
-  });
-}
-
-function slugify(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-}
-
+/**
+ * GET /api/search/engines
+ */
 export async function GET() {
-  await ensureDefaults();
-  const engines = await prisma.searchEngine.findMany({
-    orderBy: [{ sort: "asc" }, { key: "asc" }],
-    select: { key: true, name: true, url: true, sort: true },
-  });
-  return NextResponse.json({ engines });
+  const engines = await searchService.getEngines();
+  const response: GetEnginesResponse = { engines };
+  return NextResponse.json(response);
 }
 
+/**
+ * POST /api/search/engines
+ */
 export async function POST(req: Request) {
-  await ensureDefaults();
-  const body = (await req.json().catch(() => null)) as {
-    key?: unknown;
-    name?: unknown;
-    url?: unknown;
-  } | null;
+  try {
+    const body = (await req.json().catch(() => null)) as CreateEngineDTO | null;
+    if (!body) {
+      return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+    }
 
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const url = typeof body?.url === "string" ? body.url.trim() : "";
-  const requestedKey = typeof body?.key === "string" ? body.key.trim() : "";
+    const engine = await searchService.createEngine(body);
+    return NextResponse.json({ engine }, { status: 201 });
+  } catch (error: any) {
+    const message = error.message;
 
-  if (!name || !url || !url.includes("{q}")) {
-    return NextResponse.json({ error: "invalid_input" }, { status: 400 });
+    if (
+      message === "name_required" ||
+      message === "url_required" ||
+      message === "invalid_url_format"
+    ) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    if (message === "key_already_exists") {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
+
+    console.error("Failed to create engine:", error);
+    return NextResponse.json(
+      { error: "internal_server_error" },
+      { status: 500 }
+    );
   }
-
-  let key = slugify(requestedKey || name);
-  if (!key) key = `engine-${Date.now()}`;
-
-  const exists = await prisma.searchEngine.findUnique({ where: { key } });
-  if (exists) key = `${key}-${Math.random().toString(16).slice(2, 6)}`;
-
-  const maxSort = await prisma.searchEngine
-    .aggregate({ _max: { sort: true } })
-    .then((r) => r._max.sort ?? 0);
-
-  const created = await prisma.searchEngine.create({
-    data: {
-      key,
-      name,
-      url,
-      sort: maxSort + 10,
-    },
-    select: { key: true, name: true, url: true, sort: true },
-  });
-
-  return NextResponse.json({ engine: created }, { status: 201 });
 }

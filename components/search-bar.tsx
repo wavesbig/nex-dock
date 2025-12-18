@@ -1,22 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type Engine = {
-  key: string;
-  name: string;
-  url: string;
-};
-
-const DEFAULT_ENGINES: Engine[] = [
-  { key: "bing", name: "Bing", url: "https://www.bing.com/search?q={q}" },
-  { key: "baidu", name: "百度", url: "https://www.baidu.com/s?wd={q}" },
-  { key: "google", name: "Google", url: "https://www.google.com/search?q={q}" },
-];
+import {
+  getSearchEngines,
+  getSearchSettings,
+  createSearchEngine,
+  updateSearchSettings,
+} from "@/services/api/search.api";
+import { SearchEngine } from "@/types/search.dto";
 
 function EngineBadge({
   id,
@@ -64,67 +59,41 @@ export function SearchBar({ className }: { className?: string }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [openPanel, setOpenPanel] = useState(false);
-  const [engines, setEngines] = useState<Engine[]>(DEFAULT_ENGINES);
-  const [engineKey, setEngineKey] = useState<string>(DEFAULT_ENGINES[0].key);
 
-  const current = useMemo(
-    () => engines.find((e) => e.key === engineKey) ?? engines[0],
-    [engines, engineKey]
+  const [engines, setEngines] = useState<SearchEngine[]>([]);
+  const [selectedEngineKey, setSelectedEngineKey] = useState<string | null>(
+    null
   );
 
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    const load = async () => {
-      try {
-        const [enginesRes, settingsRes] = await Promise.all([
-          fetch("/api/search/engines", { signal: controller.signal }),
-          fetch("/api/search/settings", { signal: controller.signal }),
-        ]);
-        const enginesJson = (await enginesRes.json()) as { engines?: unknown };
-        const settingsJson = (await settingsRes.json()) as {
-          selectedEngineKey?: unknown;
-        };
-
-        const fetchedEngines = Array.isArray(enginesJson.engines)
-          ? (enginesJson.engines as Engine[])
-          : [];
-        const normalized = fetchedEngines.filter(
-          (e) =>
-            typeof e?.key === "string" &&
-            typeof e?.name === "string" &&
-            typeof e?.url === "string" &&
-            e.url.includes("{q}")
-        );
-
-        const selected =
-          typeof settingsJson.selectedEngineKey === "string"
-            ? settingsJson.selectedEngineKey
-            : null;
-
-        if (!active) return;
-        if (normalized.length > 0) setEngines(normalized);
-        const fallbackKey = (normalized[0]?.key ??
-          DEFAULT_ENGINES[0].key) as string;
-        setEngineKey(
-          selected && normalized.some((e) => e.key === selected)
-            ? selected
-            : fallbackKey
-        );
-      } catch {
-        if (!active) return;
-        setEngines(DEFAULT_ENGINES);
-        setEngineKey(DEFAULT_ENGINES[0].key);
-      }
-    };
-
-    void load();
-    return () => {
-      active = false;
-      controller.abort();
-    };
+  const fetchData = useCallback(async () => {
+    try {
+      const [enginesRes, settingsRes] = await Promise.all([
+        getSearchEngines(),
+        getSearchSettings(),
+      ]);
+      setEngines(enginesRes.engines);
+      setSelectedEngineKey(settingsRes.selectedEngineKey);
+    } catch (err) {
+      console.error("Failed to fetch search data:", err);
+    }
   }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      await fetchData();
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [localEngineKey, setLocalEngineKey] = useState<string | undefined>();
+
+  const activeKey = localEngineKey ?? selectedEngineKey ?? engines[0]?.key;
+
+  const current = useMemo(
+    () => engines.find((e) => e.key === activeKey) ?? engines[0],
+    [engines, activeKey]
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -167,50 +136,38 @@ export function SearchBar({ className }: { className?: string }) {
     window.open(url, "_blank");
   };
 
-  const addEngine = async () => {
+  const handleAddEngine = async () => {
     const name = window.prompt("搜索引擎名称");
     if (!name) return;
     const url = window.prompt("搜索 URL（使用 {q} 作为关键词占位）");
     if (!url || !url.includes("{q}")) return;
 
     try {
-      const res = await fetch("/api/search/engines", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, url }),
-      });
-      const json = (await res.json()) as { engine?: Engine };
-      if (!res.ok || !json.engine) return;
+      const res = await createSearchEngine({ name, url });
+      if (!res.engine) return;
 
-      setEngines((prev) => {
-        const next = [
-          ...prev.filter((e) => e.key !== json.engine!.key),
-          json.engine!,
-        ];
-        return next;
-      });
-      setEngineKey(json.engine.key);
+      await fetchData();
+
+      setLocalEngineKey(res.engine.key);
       setOpenPanel(false);
       inputRef.current?.focus();
 
-      await fetch("/api/search/settings", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ selectedEngineKey: json.engine.key }),
-      });
-    } catch {}
+      await updateSearchSettings({ selectedEngineKey: res.engine.key });
+      setSelectedEngineKey(res.engine.key);
+      await fetchData();
+    } catch {
+      // ignore
+    }
   };
 
-  const selectEngine = async (key: string) => {
-    setEngineKey(key);
+  const handleSelectEngine = async (key: string) => {
+    setLocalEngineKey(key);
     setOpenPanel(false);
     inputRef.current?.focus();
     try {
-      await fetch("/api/search/settings", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ selectedEngineKey: key }),
-      });
+      await updateSearchSettings({ selectedEngineKey: key });
+      setSelectedEngineKey(key);
+      await fetchData();
     } catch {}
   };
 
@@ -244,11 +201,6 @@ export function SearchBar({ className }: { className?: string }) {
           aria-label="搜索"
           className="h-10"
         />
-        <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-          <span>/</span>
-          <span>Ctrl</span>
-          <span>K</span>
-        </div>
         <Button type="submit" className="px-5">
           搜索
         </Button>
@@ -261,11 +213,11 @@ export function SearchBar({ className }: { className?: string }) {
               <button
                 key={e.key}
                 onClick={() => {
-                  void selectEngine(e.key);
+                  void handleSelectEngine(e.key);
                 }}
                 className={cn(
                   "flex flex-col items-center gap-2 rounded-xl border px-4 py-4 text-sm transition-colors",
-                  e.key === engineKey ? "bg-accent" : "hover:bg-accent"
+                  e.key === activeKey ? "bg-accent" : "hover:bg-accent"
                 )}
               >
                 <EngineBadge
@@ -277,7 +229,7 @@ export function SearchBar({ className }: { className?: string }) {
               </button>
             ))}
             <button
-              onClick={addEngine}
+              onClick={handleAddEngine}
               className="flex flex-col items-center justify-center gap-2 rounded-xl border px-4 py-4 text-sm hover:bg-accent"
             >
               <Plus className="size-4" />
