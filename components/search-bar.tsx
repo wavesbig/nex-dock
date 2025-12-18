@@ -175,12 +175,12 @@ export function SearchBar({ className }: { className?: string }) {
     <div ref={rootRef} className={cn("relative w-full", className)}>
       <form
         onSubmit={submit}
-        className="flex w-full items-center gap-3 rounded-2xl border bg-card/80 px-4 py-3 shadow-sm backdrop-blur"
+        className="flex w-full items-center gap-3 rounded-2xl border-0 bg-white/60 px-4 py-3 shadow-lg backdrop-blur-md transition-all hover:bg-white/70 focus-within:bg-white/80"
       >
         <Button
           type="button"
           variant="ghost"
-          className="h-10 gap-2 px-2"
+          className="h-10 gap-2 px-2 hover:bg-white/20"
           onClick={() => setOpenPanel((v) => !v)}
           aria-label="选择搜索引擎"
         >
@@ -188,7 +188,7 @@ export function SearchBar({ className }: { className?: string }) {
             <EngineBadge
               id={current.key}
               name={current.name}
-              className="size-8 rounded-lg text-sm"
+              className="size-8 rounded-lg text-sm shadow-sm"
             />
           ) : null}
           <ChevronDown className="size-4 text-muted-foreground" />
@@ -197,11 +197,14 @@ export function SearchBar({ className }: { className?: string }) {
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="输入搜索内容（/ 或 Ctrl+K 快速聚焦）"
+          placeholder="输入搜索内容..."
           aria-label="搜索"
-          className="h-10"
+          className="h-10 border-none bg-transparent text-lg placeholder:text-muted-foreground/70 focus-visible:ring-0 shadow-none"
         />
-        <Button type="submit" className="px-5">
+        <Button
+          type="submit"
+          className="px-5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-md"
+        >
           搜索
         </Button>
       </form>
