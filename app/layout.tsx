@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
+import "gridstack/dist/gridstack.min.css";
 import "./globals.css";
 
 const geistSans = Geist({

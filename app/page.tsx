@@ -1,39 +1,40 @@
 import { DashboardCanvas } from "@/components/dashboard-canvas";
 import { Sidebar } from "@/components/sidebar";
-import { SearchBar } from "@/components/search-bar";
+import { SiteHeader } from "@/components/site-header";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden font-sans text-foreground">
-      {/* Background Image */}
+    <div className="relative min-h-screen w-full overflow-hidden font-sans text-foreground selection:bg-orange-500/30">
+      {/* Background Image - Green Hills & Sunset */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
         style={{
           backgroundImage:
-            'url("https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=2070&auto=format&fit=crop")',
-        }} // Sunset landscape
+            'url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2232&auto=format&fit=crop")', // Green hills + sunset vibe
+        }}
       />
+      {/* Dark Overlay for better contrast */}
       <div className="absolute inset-0 z-0 bg-black/10" />
 
-      {/* Sidebar */}
+      {/* Sidebar - Fixed Left */}
       <div className="fixed bottom-0 left-0 top-0 z-50">
         <Sidebar />
       </div>
 
-      {/* Main Content */}
-      <main className="relative z-10 flex min-h-screen flex-col items-center pl-[80px]">
-        {/* Search Bar Area */}
-        <div className="mt-20 w-full max-w-2xl px-4">
-          <SearchBar className="shadow-lg" />
+      {/* Main Content Area */}
+      <main className="relative z-10 flex min-h-screen w-full flex-col pl-[80px]">
+        {/* Header with Search Bar */}
+        <div className="w-full pt-10 pb-6">
+          <SiteHeader className="relative top-0 right-0 left-0" />
         </div>
 
-        {/* Widgets Grid */}
-        <div className="mt-12 w-full flex-1 px-4">
+        {/* Scrollable Grid Area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-10 pb-10 scrollbar-hide">
           <DashboardCanvas />
         </div>
 
         {/* Footer */}
-        <footer className="pb-4 text-xs text-white/60">
+        <footer className="py-4 text-center text-[10px] text-white/40 font-medium tracking-wider">
           渝ICP备15002199号-13
         </footer>
       </main>

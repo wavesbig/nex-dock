@@ -37,10 +37,11 @@ export async function PUT(req: Request) {
       selectedEngineKey: updated.selectedEngineKey,
     };
     return NextResponse.json(response);
-  } catch (error: any) {
-    if (error.message.includes("not found")) {
+  } catch (error) {
+    const message = (error as Error)?.message ?? String(error);
+    if (message.includes("not found")) {
       return NextResponse.json(
-        { error: "engine_not_found", message: error.message },
+        { error: "engine_not_found", message },
         { status: 404 }
       );
     }
