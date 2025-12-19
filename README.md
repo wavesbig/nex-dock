@@ -8,7 +8,7 @@
 - 核心功能（当前仓库内已具备）：
   - Next.js 16 + React 19 的 App Router 页面渲染（示例：`app/page.tsx`）
   - Zustand（vanilla store）状态管理示例（`lib/stores/counter-store.ts` + `components/counter-demo.tsx`）
-  - `react-grid-layout@2.x` 可拖拽/缩放网格布局示例（`components/grid-layout-demo.tsx`）
+  - `gridstack.js` 可拖拽/缩放网格布局示例（`components/grid-layout-demo.tsx`）
   - Prisma + SQLite 数据模型与迁移（`prisma/schema.prisma` + `prisma/migrations/**`）
   - Docker 多阶段构建与 docker-compose 数据持久化（`Dockerfile`、`docker-compose.yml`）
 
@@ -36,7 +36,7 @@ Browser
   ↓ HTTP
 Next.js (App Router)
   ├─ Server Components / Route Handlers（当前未提供 API 路由）
-  ├─ Client Components（Zustand / react-grid-layout 等交互组件）
+  ├─ Client Components（Zustand / gridstack 等交互组件）
   └─ Data Layer（PrismaClient + better-sqlite3 adapter）
          ↓
       SQLite 文件（本地：./dev.db；容器：/app/data/dev.db）
@@ -49,7 +49,7 @@ Next.js (App Router)
   - `app/page.tsx`：首页示例，包含计数器与网格布局 demo
 - 组件：
   - `components/counter-demo.tsx`：Zustand 状态 demo
-  - `components/grid-layout-demo.tsx`：`react-grid-layout` demo（v2 使用 `gridConfig`）
+  - `components/grid-layout-demo.tsx`：`gridstack` demo
   - `components/ui/**`：shadcn/ui 风格的基础 UI 组件（eslint 默认忽略该目录）
 - 状态管理：
   - `lib/stores/counter-store.ts`：`createStore` 创建的 vanilla store（可复用在 RSC/CSR 场景）
@@ -108,7 +108,7 @@ app/                    Next.js App Router
 components/              业务/演示组件
   ui/                    shadcn/ui 组件（eslint 默认忽略）
   counter-demo.tsx       Zustand demo
-  grid-layout-demo.tsx   react-grid-layout demo
+  grid-layout-demo.tsx   gridstack demo
 lib/                     通用工具与 store
   stores/                Zustand vanilla store
 prisma/                  Prisma schema 与 migrations
@@ -168,5 +168,5 @@ docker-compose.yml       compose 部署（sqlite volume 持久化）
 
 - 增加 Route Handlers（`app/api/**/route.ts`）提供 API 层
 - 引入测试框架（如 Vitest/Jest + React Testing Library）并开启 coverage
-- 为 `react-grid-layout` demo 引入容器宽度自适应（ResponsiveGridLayout + ResizeObserver）
+- 为 `gridstack` demo 引入容器宽度自适应
 - 将示例模块抽象为真实业务模块（例如：用户管理、文章发布等），复用 Prisma schema
