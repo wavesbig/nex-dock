@@ -23,8 +23,8 @@ export async function POST(req: Request) {
 
     const engine = await searchService.createEngine(body);
     return NextResponse.json({ engine }, { status: 201 });
-  } catch (error: any) {
-    const message = error.message;
+  } catch (error) {
+    const message = (error as Error)?.message ?? String(error);
 
     if (
       message === "name_required" ||
