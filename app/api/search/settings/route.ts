@@ -1,85 +1,54 @@
-import { prisma } from "@/app/lib/prisma";
+import { searchService } from "@/services/search.service";
+import {
+  GetSettingsResponse,
+  UpdateSettingsDTO,
+  UpdateSettingsResponse,
+} from "@/types/search.dto";
 import { NextResponse } from "next/server";
 
-async function ensureDefaults() {
-  const count = await prisma.searchEngine.count();
-  if (count === 0) {
-    try {
-      await prisma.searchEngine.createMany({
-        data: [
-          {
-            key: "bing",
-            name: "Bing",
-            url: "https://www.bing.com/search?q={q}",
-            sort: 10,
-          },
-          {
-            key: "baidu",
-            name: "百度",
-            url: "https://www.baidu.com/s?wd={q}",
-            sort: 20,
-          },
-          {
-            key: "google",
-            name: "Google",
-            url: "https://www.google.com/search?q={q}",
-            sort: 30,
-          },
-        ],
-      });
-    } catch {}
-  }
-
-  const first = await prisma.searchEngine.findFirst({
-    orderBy: [{ sort: "asc" }, { key: "asc" }],
-    select: { key: true },
-  });
-
-  await prisma.searchSetting.upsert({
-    where: { id: 1 },
-    create: { id: 1, selectedEngineKey: first?.key ?? null },
-    update: {},
-  });
-}
-
+/**
+ * GET /api/search/settings
+ */
 export async function GET() {
-  await ensureDefaults();
-  const setting = await prisma.searchSetting.findUnique({
-    where: { id: 1 },
-    select: { selectedEngineKey: true },
-  });
-  return NextResponse.json({
+  const setting = await searchService.getSettings();
+  const response: GetSettingsResponse = {
     selectedEngineKey: setting?.selectedEngineKey ?? null,
-  });
+  };
+  return NextResponse.json(response);
 }
 
+/**
+ * PUT /api/search/settings
+ */
 export async function PUT(req: Request) {
-  await ensureDefaults();
-  const body = (await req.json().catch(() => null)) as {
-    selectedEngineKey?: unknown;
-  } | null;
+  try {
+    const body = (await req
+      .json()
+      .catch(() => null)) as UpdateSettingsDTO | null;
+    if (!body || !body.selectedEngineKey) {
+      return NextResponse.json(
+        { error: "selectedEngineKey_required" },
+        { status: 400 }
+      );
+    }
 
-  const selectedEngineKey =
-    typeof body?.selectedEngineKey === "string" ? body.selectedEngineKey : null;
+    const updated = await searchService.updateSettings(body);
+    const response: UpdateSettingsResponse = {
+      selectedEngineKey: updated.selectedEngineKey,
+    };
+    return NextResponse.json(response);
+  } catch (error: any) {
+    if (error.message.includes("not found")) {
+      return NextResponse.json(
+        { error: "engine_not_found", message: error.message },
+        { status: 404 }
+      );
+    }
 
-  if (!selectedEngineKey) {
-    return NextResponse.json({ error: "invalid_input" }, { status: 400 });
+    console.error("Failed to update settings:", error);
+    return NextResponse.json(
+      { error: "internal_server_error" },
+      { status: 500 }
+    );
   }
-
-  const exists = await prisma.searchEngine.findUnique({
-    where: { key: selectedEngineKey },
-    select: { key: true },
-  });
-  if (!exists) {
-    return NextResponse.json({ error: "engine_not_found" }, { status: 404 });
-  }
-
-  const updated = await prisma.searchSetting.upsert({
-    where: { id: 1 },
-    create: { id: 1, selectedEngineKey },
-    update: { selectedEngineKey },
-    select: { selectedEngineKey: true },
-  });
-
-  return NextResponse.json({ selectedEngineKey: updated.selectedEngineKey });
 }
